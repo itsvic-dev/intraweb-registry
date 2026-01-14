@@ -1,0 +1,8 @@
+inetnum:            10.0.0.0 - 10.255.255.255
+cidr:               10.0.0.0/8
+netname:            BLK-INTRAWEB
+descr:              Intraweb root block
+status:             ALLOCATED
+policy:             open
+mnt-by:             INTRAWEB-MNT
+source:             INTRAWEB

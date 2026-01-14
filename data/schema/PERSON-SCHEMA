@@ -1,0 +1,20 @@
+schema:             PERSON-SCHEMA
+ref:                iw.person
+dir-name:           person
+key:                person          required   single    schema
+key:                nic-hdl         required   single    primary
+key:                mnt-by          required   multiple  lookup=iw.mntner
+key:                org             optional   multiple  lookup=iw.organisation
+key:                nick            optional   multiple
+key:                pgp-fingerprint optional   multiple
+key:                www             optional   multiple
+key:                e-mail          optional   multiple
+key:                contact         optional   multiple
+key:                abuse-mailbox   optional   multiple
+key:                phone           optional   multiple
+key:                fax-no          optional   multiple
+key:                address         optional   multiple
+key:                remarks         optional   multiple
+key:                source          required   single    lookup=iw.registry
+mnt-by:             INTRAWEB-MNT
+source:             INTRAWEB

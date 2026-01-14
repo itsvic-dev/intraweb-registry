@@ -1,0 +1,24 @@
+schema:             AUT-NUM-SCHEMA
+ref:                iw.aut-num
+dir-name:           aut-num
+key:                aut-num    required  single   primary schema
+key:                as-name    required  single
+key:                descr      optional  single
+key:                mnt-by     required  multiple lookup=iw.mntner
+key:                member-of  optional  multiple lookup=iw.as-set,iw.route-set
+key:                admin-c    optional  multiple lookup=iw.person,iw.role
+key:                tech-c     optional  multiple lookup=iw.person,iw.role
+key:                org        optional  single   lookup=iw.organisation
+key:                import     deprecate multiple
+key:                export     deprecate multiple
+key:                default    deprecate multiple
+key:                mp-peer    deprecate multiple
+key:                mp-group   deprecate multiple
+key:                mp-import  optional  multiple
+key:                mp-export  optional  multiple
+key:                mp-default optional  multiple
+key:                geo-loc    optional  multiple > [lat-c] [long-c] [name]
+key:                remarks    optional  multiple
+key:                source     required  single    lookup=iw.registry
+mnt-by:             INTRAWEB-MNT
+source:             INTRAWEB

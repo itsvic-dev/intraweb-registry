@@ -1,0 +1,12 @@
+schema:             REGISTRY-SCHEMA
+ref:                iw.registry
+dir-name:           registry
+key:                registry   required  single    primary schema
+key:                url        required  multiple
+key:                descr      optional  multiple
+key:                mnt-by     required  multiple  lookup=iw.mntner
+key:                admin-c    optional  multiple  lookup=iw.person,iw.role
+key:                tech-c     optional  multiple  lookup=iw.person,iw.role
+key:                source     required  single    lookup=iw.registry
+mnt-by:             INTRAWEB-MNT
+source:             INTRAWEB

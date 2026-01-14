@@ -1,0 +1,16 @@
+schema:             ROLE-SCHEMA
+ref:                iw.role
+dir-name:           role
+key:                role            required   single    schema
+key:                nic-hdl         required   single    primary
+key:                mnt-by          required   multiple  lookup=iw.mntner
+key:                org             optional   multiple  lookup=iw.organisation
+key:                admin-c         optional   multiple  lookup=iw.person
+key:                tech-c          optional   multiple  lookup=iw.person
+key:                abuse-c         optional   multiple  lookup=iw.person
+key:                abuse-mailbox   optional   multiple
+key:                descr           optional   single
+key:                remarks         optional   multiple
+key:                source          required   single    lookup=iw.registry
+mnt-by:             INTRAWEB-MNT
+source:             IW

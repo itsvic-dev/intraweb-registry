@@ -1,0 +1,4 @@
+route:              10.21.0.0/24
+origin:             AS4266660001
+mnt-by:             VIC-MNT
+source:             INTRAWEB

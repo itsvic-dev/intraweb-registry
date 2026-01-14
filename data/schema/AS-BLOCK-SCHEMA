@@ -1,0 +1,13 @@
+schema:             AS-BLOCK-SCHEMA
+ref:                iw.as-block
+dir-name:           as-block
+key:                as-block   required  single    primary schema
+key:                descr      optional  single
+key:                policy     required  single    > {open|ask|closed}
+key:                mnt-by     required  multiple  lookup=iw.mntner
+key:                admin-c    optional  multiple  lookup=iw.person,iw.role
+key:                tech-c     optional  multiple  lookup=iw.person,iw.role
+key:                remarks    optional  multiple
+key:                source     required  single    lookup=iw.registry
+mnt-by:             INTRAWEB-MNT
+source:             INTRAWEB

@@ -1,0 +1,14 @@
+schema:             AS-SET-SCHEMA
+ref:                iw.as-set
+dir-name:           as-set
+key:                as-set      required  single    primary schema
+key:                descr       optional  multiple
+key:                mnt-by      required  multiple  lookup=iw.mntner
+key:                members     optional  multiple  lookup=iw.aut-num,iw.as-set
+key:                mbrs-by-ref optional  multiple  lookup=iw.mntner
+key:                admin-c     optional  multiple  lookup=iw.person,iw.role
+key:                tech-c      optional  multiple  lookup=iw.person,iw.role
+key:                remarks     optional  multiple
+key:                source      required  single    lookup=iw.registry
+mnt-by:             INTRAWEB-MNT
+source:             INTRAWEB
