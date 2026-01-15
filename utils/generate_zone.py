@@ -38,7 +38,7 @@ for file in glob.iglob("data/dns/*"):
 with open("iw.db", "w+") as file:
     file.write(HEADER + "\n")
     for domain, ns in sorted(list(domains)):
-        file.write(f"{domain}. IN NS {ns}\n")
+        file.write(f"{domain}. IN NS {ns}.\n")
     file.write("\n")
     for ns, a in sorted(list(nameservers)):
         file.write(f"{ns}. IN A {a}\n")
