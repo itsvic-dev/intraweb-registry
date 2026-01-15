@@ -5,43 +5,17 @@ import re
 import socketserver
 import sys
 
+from dumbschema import dumb_parse_object, pretty_print_object
+
 REGEXES = {
     r"^(((?!25?[6-9])[12]\d|[1-9])?\d\.?\b){4}$": ["inetnum", "route"],
     r"^[\w-]*-IW$": ["person", "role"],
     r"^AS\d+$": ["aut-num"],
+    r"^.*\.iw$": ["dns"],
+    r"^iw$": ["dns"],  # 'iw' zone
 }
 
 FOOTER = "% This query was served by the Intranet WHOIS query server"
-
-
-def dumb_parse_object(input: str) -> dict[str, str | list[str]]:
-    ret_val: dict[str, str | list[str]] = {}
-    for line in input.splitlines():
-        key, value = line.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        if key in ret_val:
-            if type(ret_val[key]) is str:
-                # we already verified it's a string, not a list of strings smh
-                ret_val[key] = [ret_val[key]]  # pyright: ignore[reportArgumentType]
-            ret_val[key].append(value)  # pyright: ignore[reportAttributeAccessIssue]
-        else:
-            ret_val[key] = value
-    return ret_val
-
-
-def pretty_print_object(obj: dict[str, str | list[str]]) -> str:
-    ret_val = ""
-    for key, value in obj.items():
-        delim = "\t"
-        if len(key) < 7:
-            delim = "\t\t"
-        if type(value) is list:
-            for v in value:
-                ret_val += f"{key}:{delim}{v}\n"
-        else:
-            ret_val += f"{key}:{delim}{value}\n"
-    return ret_val
 
 
 def lookup_inetnum(query: str) -> str:
@@ -102,6 +76,34 @@ def lookup_person(query: str) -> str:
         return pretty_print_object(dumb_parse_object(file.read())) + "\n"
 
 
+def lookup_dns(query: str) -> str:
+    if not os.path.exists(f"data/dns/{query}"):
+        return ""
+
+    with open(f"data/dns/{query}") as file:
+        obj = dumb_parse_object(file.read())
+
+    EXTRA_LOOKUPS = ["admin-c", "tech-c", "org"]
+    extra_objects = set()
+
+    output = pretty_print_object(obj) + "\n"
+
+    for extra_key in EXTRA_LOOKUPS:
+        if extra_key in obj:
+            if type(obj[extra_key]) is list:
+                for value in obj[extra_key]:
+                    if value not in extra_objects:
+                        output += lookup(value)
+                        extra_objects.add(value)
+            else:
+                value = obj[extra_key]
+                if value not in extra_objects:
+                    output += lookup(value)  # pyright: ignore[reportArgumentType]
+                    extra_objects.add(value)
+
+    return output
+
+
 def lookup(query: str) -> str:
     query = query.strip()
     output = ""
@@ -116,6 +118,8 @@ def lookup(query: str) -> str:
                         output += lookup_route(query)
                     case "person":
                         output += lookup_person(query)
+                    case "dns":
+                        output += lookup_dns(query)
 
     return output
 

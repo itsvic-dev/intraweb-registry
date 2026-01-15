@@ -1,0 +1,5 @@
+domain:             iw
+descr:              Intraweb gTLD
+nserver:            v.root-servers.iw 10.21.0.1
+mnt-by:             INTRAWEB-MNT
+source:             INTRAWEB
