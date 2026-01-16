@@ -56,4 +56,4 @@ with open("iw.db", "w+") as file:
         file.write(f"{ns}. IN A {a}\n")
 
 with open(".zone-data", "wb+") as file:
-    pickle.dump((serial + 1, old_domains, old_nameservers), file)
+    pickle.dump((serial + 1, domains, nameservers), file)
