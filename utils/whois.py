@@ -140,11 +140,19 @@ class WhoisRequestHandler(socketserver.StreamRequestHandler):
 
 
 if __name__ == "__main__":
-    HOST, PORT = "localhost", 9999
+    import argparse
 
-    print(f"Starting WHOIS server on {HOST}:{PORT}")
-    print(f"Access me with `whois -h {HOST} -p {PORT} ...`")
-    with socketserver.ForkingTCPServer((HOST, PORT), WhoisRequestHandler) as server:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-H", "--host", default="localhost")
+    parser.add_argument("-p", "--port", default=43, type=int)
+    ns = parser.parse_args()
+
+    host = ns.host
+    port = ns.port
+
+    print(f"Starting WHOIS server on {host}:{port}")
+    print(f"Access me with `whois -h {host} -p {port} ...`")
+    with socketserver.ForkingTCPServer((host, port), WhoisRequestHandler) as server:
         try:
             server.serve_forever()
         except KeyboardInterrupt:
