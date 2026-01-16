@@ -1,0 +1,4 @@
+route:              10.42.69.0/24
+origin:             AS4266660002
+mnt-by:             AKOS-MNT
+source:             INTRAWEB
