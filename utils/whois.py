@@ -10,7 +10,7 @@ from dumbschema import dumb_parse_object, pretty_print_object
 REGEXES = {
     r"^(((?!25?[6-9])[12]\d|[1-9])?\d\.?\b){4}$": ["inetnum", "route"],
     r"^[\w-]*-IW$": ["person", "role"],
-    r"^AS\d+$": ["aut-num"],
+    r"^(AS|as)\d+$": ["aut-num"],
     r"^.*\.iw$": ["dns"],
     r"^iw$": ["dns"],  # 'iw' zone
 }
@@ -105,7 +105,7 @@ def lookup(query: str) -> str:
             for value in values:
                 match value:
                     case "aut-num":
-                        output += lookup_generic("aut-num", query)
+                        output += lookup_generic("aut-num", query.upper())
                     case "inetnum":
                         output += lookup_inetnum(query)
                     case "route":
