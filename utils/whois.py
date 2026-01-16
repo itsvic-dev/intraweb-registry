@@ -68,19 +68,11 @@ def lookup_route(query: str) -> str:
         return pretty_print_object(dumb_parse_object(file.read())) + "\n"
 
 
-def lookup_person(query: str) -> str:
-    if not os.path.exists(f"data/person/{query}"):
+def lookup_generic(kind: str, query: str) -> str:
+    if not os.path.exists(f"data/{kind}/{query}"):
         return ""
 
-    with open(f"data/person/{query}") as file:
-        return pretty_print_object(dumb_parse_object(file.read())) + "\n"
-
-
-def lookup_dns(query: str) -> str:
-    if not os.path.exists(f"data/dns/{query}"):
-        return ""
-
-    with open(f"data/dns/{query}") as file:
+    with open(f"data/{kind}/{query}") as file:
         obj = dumb_parse_object(file.read())
 
     EXTRA_LOOKUPS = ["admin-c", "tech-c", "org"]
@@ -112,14 +104,18 @@ def lookup(query: str) -> str:
             # found a match, lookup values
             for value in values:
                 match value:
+                    case "aut-num":
+                        output += lookup_generic("aut-num", query)
                     case "inetnum":
                         output += lookup_inetnum(query)
                     case "route":
                         output += lookup_route(query)
                     case "person":
-                        output += lookup_person(query)
+                        output += lookup_generic("person", query)
+                    case "role":
+                        output += lookup_generic("role", query)
                     case "dns":
-                        output += lookup_dns(query)
+                        output += lookup_generic("dns", query)
 
     return output
 
