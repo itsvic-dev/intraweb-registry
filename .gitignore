@@ -1,5 +1,5 @@
 __pycache__/
-iw.db
-root.db
+/iw.db
+/root.db
 .zone-data
 .DS_Store
