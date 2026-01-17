@@ -61,6 +61,7 @@ with open("root.db", "w+") as file:
     file.write(HEADER(".") + "\n")
     iw_ns = [ns for domain, ns in domains if domain == "iw"]
     for domain, ns in sorted([d for d in domains if d[0] == "iw"]):
+        file.write(f". IN NS {ns}.\n")
         file.write(f"{domain}. IN NS {ns}.\n")
     for ns, a in sorted(list(nameservers)):
         if ns not in iw_ns:
