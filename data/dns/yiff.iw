@@ -1,0 +1,6 @@
+domain:             yiff.iw
+nserver:            ns1.akos.iw 10.42.69.2
+nserver:            ns2.akos.iw 10.42.69.3
+admin-c:            AKOS-IW
+mnt-by:             AKOS-MNT
+source:             INTRAWEB
