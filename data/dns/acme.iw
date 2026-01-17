@@ -1,0 +1,5 @@
+domain:             acme.iw
+nserver:            ns1.acme.iw 10.21.0.1
+admin-c:            VIC-IW
+mnt-by:             VIC-MNT
+source:             INTRAWEB
