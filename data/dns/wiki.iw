@@ -1,4 +1,4 @@
-domain:             acme.iw
+domain:             wiki.iw
 nserver:            ns1.vic.iw 10.21.0.1
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
