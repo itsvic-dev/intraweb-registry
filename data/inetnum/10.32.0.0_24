@@ -3,6 +3,7 @@ cidr:               10.32.0.0/24
 netname:            VIC-ISP-NETWORK
 country:            PL
 descr:              vic!ISP - Warsaw
+nserver:            ns1.vic.iw
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
 status:             ASSIGNED

@@ -1,6 +1,7 @@
 """generates the 'iw.db' file to be consumed by BIND"""
 
 import glob
+import ipaddress
 import os
 import pickle
 
@@ -9,15 +10,17 @@ from dumbschema import dumb_parse_object
 serial = 1
 old_domains = set()
 old_nameservers = set()
-
-if os.path.exists(".serial"):
-    with open(".serial", "rb") as file:
-        serial = pickle.load(file)
-    os.unlink(".serial")
+old_rdns = set()
 
 if os.path.exists(".zone-data"):
     with open(".zone-data", "rb") as file:
-        serial, old_domains, old_nameservers = pickle.load(file)
+        data = pickle.load(file)
+        if len(data) == 3:
+            serial, old_domains, old_nameservers = data
+        elif len(data) == 4:
+            serial, old_domains, old_nameservers, old_rdns = data
+        else:
+            raise Exception("Old data has unexpected number of items")
 
 
 def HEADER(origin):
@@ -31,6 +34,7 @@ $TTL 1h
 
 domains = set()
 nameservers = set()
+rdns = set()
 
 for file in glob.iglob("data/dns/*"):
     with open(file) as f:
@@ -45,7 +49,22 @@ for file in glob.iglob("data/dns/*"):
         domains.add((domain, ns))
         nameservers.add((ns, a))
 
-if domains == old_domains and nameservers == old_nameservers:
+# only scan for /24s
+for file in glob.iglob("data/inetnum/*_24"):
+    with open(file) as f:
+        obj = dumb_parse_object(f.read())
+    nservers = obj.get("nserver")
+    ip = str(ipaddress.ip_network(obj["cidr"]).network_address)  # pyright: ignore[reportArgumentType]
+    if nservers is None:
+        continue
+
+    if type(nservers) is not list:  # single nserver defined
+        nservers = [nservers]
+
+    for nserver in nservers:
+        rdns.add((ip, nserver))
+
+if domains == old_domains and nameservers == old_nameservers and rdns == old_rdns:
     print("Domains are identical, skipping update")
     exit()
 
@@ -71,5 +90,13 @@ with open("root.db", "w+") as file:
     with open("utils/root.db") as icann_root_file:
         file.write(icann_root_file.read())
 
+# only populate /24 ranges
+with open("rdns.db", "w+") as file:
+    file.write(HEADER("10.in-addr.arpa.") + "\n")
+    for ip, ns in sorted(list(rdns)):
+        # chop off first and last octets, reverse them
+        ip_domain = ".".join(reversed(ip.split(".")[1:3]))
+        file.write(f"{ip_domain} IN NS {ns}.\n")
+
 with open(".zone-data", "wb+") as file:
-    pickle.dump((serial + 1, domains, nameservers), file)
+    pickle.dump((serial + 1, domains, nameservers, rdns), file)
