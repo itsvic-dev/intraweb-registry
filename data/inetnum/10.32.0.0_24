@@ -1,0 +1,9 @@
+inetnum:            10.32.0.0 - 10.32.0.255
+cidr:               10.32.0.0/24
+netname:            VIC-ISP-NETWORK
+country:            PL
+descr:              vic!ISP - Warsaw
+admin-c:            VIC-IW
+mnt-by:             VIC-MNT
+status:             ASSIGNED
+source:             INTRAWEB
