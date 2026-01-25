@@ -93,6 +93,9 @@ with open("root.db", "w+") as file:
 # only populate /24 ranges
 with open("rdns.db", "w+") as file:
     file.write(HEADER("10.in-addr.arpa.") + "\n")
+    iw_ns = [ns for domain, ns in domains if domain == "iw"]
+    for domain, ns in sorted([d for d in domains if d[0] == "iw"]):
+        file.write(f"@ IN NS {ns}.\n")
     for ip, ns in sorted(list(rdns)):
         # chop off first and last octets, reverse them
         ip_domain = ".".join(reversed(ip.split(".")[1:3]))
