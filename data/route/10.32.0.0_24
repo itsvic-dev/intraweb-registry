@@ -1,0 +1,5 @@
+route:              10.32.0.0/24
+origin:             AS4266660003
+descr:              vic!ISP - Warsaw
+mnt-by:             VIC-MNT
+source:             INTRAWEB
