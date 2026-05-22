@@ -9,6 +9,7 @@ from dumbschema import dumb_parse_object, pretty_print_object
 
 REGEXES = {
     r"^(((?!25?[6-9])[12]\d|[1-9])?\d\.?\b){4}$": ["inetnum", "route"],
+    r"^ORG-[\w-]+$": ["org"],
     r"^[\w-]*-IW$": ["person", "role"],
     r"^(AS|as)\d+$": ["aut-num"],
     r"^.*\.iw$": ["dns"],
@@ -68,7 +69,7 @@ def lookup_route(query: str) -> str:
         return pretty_print_object(dumb_parse_object(file.read())) + "\n"
 
 
-def lookup_generic(kind: str, query: str) -> str:
+def lookup_generic(kind: str, query: str, extra_objects=set()) -> str:
     if not os.path.exists(f"data/{kind}/{query}"):
         return ""
 
@@ -76,7 +77,6 @@ def lookup_generic(kind: str, query: str) -> str:
         obj = dumb_parse_object(file.read())
 
     EXTRA_LOOKUPS = ["admin-c", "tech-c", "org"]
-    extra_objects = set()
 
     output = pretty_print_object(obj) + "\n"
 
@@ -85,18 +85,18 @@ def lookup_generic(kind: str, query: str) -> str:
             if type(obj[extra_key]) is list:
                 for value in obj[extra_key]:
                     if value not in extra_objects:
-                        output += lookup(value)
+                        output += lookup(value, extra_objects)
                         extra_objects.add(value)
             else:
                 value = obj[extra_key]
                 if value not in extra_objects:
-                    output += lookup(value)  # pyright: ignore[reportArgumentType]
+                    output += lookup(value, extra_objects)  # pyright: ignore[reportArgumentType]
                     extra_objects.add(value)
 
     return output
 
 
-def lookup(query: str) -> str:
+def lookup(query: str, extra_objects=set()) -> str:
     query = query.strip()
     output = ""
     for key, values in REGEXES.items():
@@ -105,17 +105,21 @@ def lookup(query: str) -> str:
             for value in values:
                 match value:
                     case "aut-num":
-                        output += lookup_generic("aut-num", query.upper())
+                        output += lookup_generic(
+                            "aut-num", query.upper(), extra_objects
+                        )
                     case "inetnum":
                         output += lookup_inetnum(query)
                     case "route":
                         output += lookup_route(query)
+                    case "org":
+                        output += lookup_generic("organisation", query, extra_objects)
                     case "person":
-                        output += lookup_generic("person", query)
+                        output += lookup_generic("person", query, extra_objects)
                     case "role":
-                        output += lookup_generic("role", query)
+                        output += lookup_generic("role", query, extra_objects)
                     case "dns":
-                        output += lookup_generic("dns", query)
+                        output += lookup_generic("dns", query, extra_objects)
 
     return output
 

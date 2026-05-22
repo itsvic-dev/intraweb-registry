@@ -1,6 +1,7 @@
 aut-num:            AS4266660003
 as-name:            VIC-ISP-AS
 descr:              vic!ISP
+org:                ORG-VIC
 admin-c:            VIC-IW
 tech-c:             VIC-IW
 mnt-by:             VIC-MNT
