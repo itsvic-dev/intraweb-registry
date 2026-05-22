@@ -1,6 +1,7 @@
 aut-num:            AS4266660001
 as-name:            VIC-AS
 descr:              it's vic!
+org:                ORG-VIC
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
 source:             INTRAWEB
