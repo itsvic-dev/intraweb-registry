@@ -3,6 +3,7 @@ cidr:               10.21.0.0/24
 netname:            VIC-NETWORK
 descr:              vic!Network
 nserver:            ns1.vic.iw
+org:                ORG-VIC
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
 status:             ASSIGNED
