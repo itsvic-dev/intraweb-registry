@@ -43,12 +43,12 @@ def lookup_inetnum(query: str) -> str:
             if type(obj[extra_key]) is list:
                 for value in obj[extra_key]:
                     if value not in extra_objects:
-                        output += lookup(value)
+                        output += lookup(value, extra_objects)
                         extra_objects.add(value)
             else:
                 value = obj[extra_key]
                 if value not in extra_objects:
-                    output += lookup(value)  # pyright: ignore[reportArgumentType]
+                    output += lookup(value, extra_objects)  # pyright: ignore[reportArgumentType]
                     extra_objects.add(value)
 
     return output
