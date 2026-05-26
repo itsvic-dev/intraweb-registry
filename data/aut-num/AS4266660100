@@ -1,0 +1,8 @@
+aut-num:            AS4266660100
+as-name:            VIC-ROUTE-COLLECTOR-AS
+descr:              Route Collector
+org:                ORG-VIC
+admin-c:            VIC-IW
+mnt-by:             VIC-MNT
+remarks:            This is the Route Collector. It does not export any routes.
+source:             INTRAWEB
