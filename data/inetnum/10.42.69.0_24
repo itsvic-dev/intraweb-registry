@@ -1,8 +1,9 @@
-inetnum:    10.42.69.0 - 10.42.69.255
-cidr:       10.42.69.0/24
-netname:    yiffer9000
-descr:      Yiffer 9000
-admin-c:    AKOS-IW
-mnt-by:     AKOS-MNT
-status:     ASSIGNED
-source:     INTRAWEB
+inetnum:            10.42.69.0 - 10.42.69.255
+cidr:               10.42.69.0/24
+netname:            yiffer9000
+descr:              Yiffer 9000
+org:                ORG-YIFFER
+admin-c:            AKOS-IW
+mnt-by:             AKOS-MNT
+status:             ASSIGNED
+source:             INTRAWEB

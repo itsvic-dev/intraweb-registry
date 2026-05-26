@@ -1,6 +1,7 @@
 aut-num:            AS4266660002
 as-name:            YIFF-AS
 descr:              YIFF
+org:                ORG-YIFFER
 admin-c:            AKOS-IW
 mnt-by:             AKOS-MNT
 source:             INTRAWEB
