@@ -1,0 +1,21 @@
+name: verify-auth
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-auth:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: verify maintainer authorization
+        run: >
+          python3 utils/verify_auth.py
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"

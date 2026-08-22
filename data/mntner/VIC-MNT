@@ -3,4 +3,6 @@ descr:              it's vic!
 admin-c:            VIC-IW
 tech-c:             VIC-IW
 mnt-by:             VIC-MNT
+auth:               pgp-fingerprint FBAAB86A101B4C5FD4F125D2E93DDAC17E5D6CA1
+auth:               ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPQ9kubQPsQKJdtOLG35DApD9IWNU5gR6Dm+e2cy2L83
 source:             INTRAWEB

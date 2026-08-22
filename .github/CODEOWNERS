@@ -1,0 +1,3 @@
+# these paths carry no mnt-by, so verify-auth cannot authorize changes to them
+/.github/    @itsvic-dev
+/utils/      @itsvic-dev

@@ -6,7 +6,7 @@ key:                descr          optional  single
 key:                mnt-by         required  multiple  lookup=iw.mntner
 key:                admin-c        optional  multiple  lookup=iw.person,iw.role
 key:                tech-c         optional  multiple  lookup=iw.person,iw.role
-key:                auth           optional  multiple  > [method] [value]...
+key:                auth           optional  multiple  > {pgp-fingerprint|<ssh-key-type>} [value]
 key:                org            optional  multiple  lookup=iw.organisation
 key:                abuse-mailbox  optional  single
 key:                remarks        optional  multiple
