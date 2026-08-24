@@ -2,4 +2,5 @@ domain:             acme.iw
 nserver:            ns1.vic.iw 10.21.0.1
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
+ds-rdata:           42538 15 2 32EB9C5D4C8CCB69C78CBB83001C732D30130E29C727874DDB61424EF6B04983
 source:             INTRAWEB
