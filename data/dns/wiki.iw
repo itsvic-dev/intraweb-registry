@@ -2,4 +2,5 @@ domain:             wiki.iw
 nserver:            ns1.vic.iw 10.21.0.1
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
+ds-rdata:           3743 15 2 8A925A6017DE79384488D9EB0F3A4BBF5B01DC3EF87DB836AC6C2EC5ACE5B41B
 source:             INTRAWEB

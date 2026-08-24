@@ -2,4 +2,5 @@ domain:             vic.iw
 nserver:            ns1.vic.iw 10.21.0.1
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
+ds-rdata:           26248 15 2 CB6E145671C8EE96F28BFEA89A156D01C7BC427267A419284909CF5FD7A5F7CF
 source:             INTRAWEB

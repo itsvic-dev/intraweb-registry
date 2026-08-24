@@ -2,4 +2,5 @@ domain:             bgp.iw
 nserver:            ns1.vic.iw 10.21.0.1
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
+ds-rdata:           34849 15 2 63EC2F2BAE63576BDE6C3761CE1D0967B67A41EDB5EF42E8696D323CD431F333
 source:             INTRAWEB

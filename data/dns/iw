@@ -2,4 +2,5 @@ domain:             iw
 descr:              Intraweb gTLD
 nserver:            v.root-servers.iw 10.21.0.1
 mnt-by:             INTRAWEB-MNT
+ds-rdata:           51308 15 2 ADCB353B1744AEEBC265ACA695137718A739A637FCA664EFC6B745621D6C4EF7
 source:             INTRAWEB

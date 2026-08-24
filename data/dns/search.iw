@@ -2,4 +2,5 @@ domain:             search.iw
 nserver:            ns1.vic.iw 10.21.0.1
 admin-c:            VIC-IW
 mnt-by:             VIC-MNT
+ds-rdata:           6622 15 2 2956E9AC8278FB869B2BAF4DE8667D591915C1497431F9FEFB0EDF3CA9213FD2
 source:             INTRAWEB

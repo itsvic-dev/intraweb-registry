@@ -11,6 +11,7 @@ serial = 1
 old_domains = set()
 old_nameservers = set()
 old_rdns = set()
+old_ds_records = set()
 
 if os.path.exists(".zone-data"):
     with open(".zone-data", "rb") as file:
@@ -19,6 +20,8 @@ if os.path.exists(".zone-data"):
             serial, old_domains, old_nameservers = data
         elif len(data) == 4:
             serial, old_domains, old_nameservers, old_rdns = data
+        elif len(data) == 5:
+            serial, old_domains, old_nameservers, old_rdns, old_ds_records = data
         else:
             raise Exception("Old data has unexpected number of items")
 
@@ -35,6 +38,7 @@ $TTL 1h
 domains = set()
 nameservers = set()
 rdns = set()
+ds_records = set()
 
 for file in glob.iglob("data/dns/*"):
     with open(file) as f:
@@ -48,6 +52,15 @@ for file in glob.iglob("data/dns/*"):
         ns, a = [i.strip() for i in nserver.split(" ", 1)]  # pyright: ignore[reportAttributeAccessIssue]
         domains.add((domain, ns))
         nameservers.add((ns, a))
+
+    # iw. itself has no parent zone to publish its own DS in, so its
+    # ds-rdata is documentation only and must not be served from iw.db.
+    if domain != "iw":
+        ds_rdata = obj.get("ds-rdata", [])
+        if type(ds_rdata) is not list:
+            ds_rdata = [ds_rdata]
+        for rdata in ds_rdata:
+            ds_records.add((domain, rdata))
 
 # only scan for /24s
 for file in glob.iglob("data/inetnum/*_24"):
@@ -64,7 +77,12 @@ for file in glob.iglob("data/inetnum/*_24"):
     for nserver in nservers:
         rdns.add((ip, nserver))
 
-if domains == old_domains and nameservers == old_nameservers and rdns == old_rdns:
+if (
+    domains == old_domains
+    and nameservers == old_nameservers
+    and rdns == old_rdns
+    and ds_records == old_ds_records
+):
     print("Domains are identical, skipping update")
     exit()
 
@@ -72,23 +90,11 @@ with open("iw.db", "w+") as file:
     file.write(HEADER("iw.") + "\n")
     for domain, ns in sorted(list(domains)):
         file.write(f"{domain}. IN NS {ns}.\n")
+    for domain, rdata in sorted(list(ds_records)):
+        file.write(f"{domain}. IN DS {rdata}\n")
     file.write("\n")
     for ns, a in sorted(list(nameservers)):
         file.write(f"{ns}. IN A {a}\n")
-
-with open("root.db", "w+") as file:
-    file.write(HEADER(".") + "\n")
-    iw_ns = [ns for domain, ns in domains if domain == "iw"]
-    for domain, ns in sorted([d for d in domains if d[0] == "iw"]):
-        file.write(f". IN NS {ns}.\n")
-        file.write(f"{domain}. IN NS {ns}.\n")
-    for ns, a in sorted(list(nameservers)):
-        if ns not in iw_ns:
-            continue
-        file.write(f"{ns}. IN A {a}\n")
-    file.write("\n")
-    with open("utils/root.db") as icann_root_file:
-        file.write(icann_root_file.read())
 
 # only populate /24 ranges
 with open("rdns.db", "w+") as file:
@@ -102,4 +108,4 @@ with open("rdns.db", "w+") as file:
         file.write(f"{ip_domain} IN NS {ns}.\n")
 
 with open(".zone-data", "wb+") as file:
-    pickle.dump((serial + 1, domains, nameservers, rdns), file)
+    pickle.dump((serial + 1, domains, nameservers, rdns, ds_records), file)
