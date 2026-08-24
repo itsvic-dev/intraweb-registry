@@ -13,9 +13,17 @@ KEYSERVERS = ("hkps://keys.openpgp.org", "hkps://keyserver.ubuntu.com")
 SSH_PREFIXES = ("ssh-", "ecdsa-sha2-", "sk-ssh-", "sk-ecdsa-")
 
 IN_ACTIONS = os.environ.get("GITHUB_ACTIONS") == "true"
+REPORT_PATH = os.environ.get("VERIFY_AUTH_REPORT", os.path.join(tempfile.gettempdir(), "verify-auth-report.md"))
 
 errors = 0
 warnings = 0
+issues = []
+log_lines = []
+
+
+def log(message):
+    print(message)
+    log_lines.append(message)
 
 
 def report(kind, message, path=None):
@@ -24,6 +32,7 @@ def report(kind, message, path=None):
         errors += 1
     else:
         warnings += 1
+    issues.append({"kind": kind, "message": message, "path": path})
     if IN_ACTIONS:
         where = f" file={path}" if path else ""
         print(f"::{kind}{where}::{message}")
@@ -180,6 +189,29 @@ def changed_paths(sha):
             yield "M", fields[1], f"{sha}^"
 
 
+def render_markdown(commit_count):
+    lines = [f"**{commit_count} commit(s) checked, {errors} error(s), {warnings} warning(s)**", ""]
+
+    for kind, heading in (("error", "Errors"), ("warning", "Warnings")):
+        matching = [issue for issue in issues if issue["kind"] == kind]
+        if not matching:
+            continue
+        lines.append(f"### {heading}")
+        for issue in matching:
+            lines.append(f"- {issue['message']}")
+        lines.append("")
+
+    if log_lines:
+        lines += ["<details><summary>Full log</summary>", "", "```", *log_lines, "```", "</details>"]
+
+    return "\n".join(lines) + "\n"
+
+
+def write_report(commit_count):
+    with open(REPORT_PATH, "w") as file:
+        file.write(render_markdown(commit_count))
+
+
 def main():
     if len(sys.argv) not in (2, 3):
         raise SystemExit(f"usage: {sys.argv[0]} <base-rev> [head-rev]")
@@ -189,6 +221,7 @@ def main():
     commits = git("rev-list", "--no-merges", "--reverse", f"{base}..{head}").stdout.split()
     if not commits:
         print(f"no commits in {base}..{head}")
+        write_report(0)
         return 0
 
     with tempfile.TemporaryDirectory() as workdir:
@@ -217,6 +250,7 @@ def main():
             check_commit(sha, maintainers, gnupghome, allowed_signers, pgp_index, ssh_index)
 
     print(f"\n{len(commits)} commit(s) checked, {errors} error(s), {warnings} warning(s)")
+    write_report(len(commits))
     return 1 if errors else 0
 
 
@@ -233,7 +267,7 @@ def check_commit(sha, maintainers, gnupghome, allowed_signers, pgp_index, ssh_in
             signers |= ssh_index.get(fingerprint, set())
 
     described = ", ".join(sorted(signers)) if signers else "no registered maintainer"
-    print(f"\n{sha[:8]} {subject}\n  signature: {fmt or 'none'} -> {described}")
+    log(f"\n{sha[:8]} {subject}\n  signature: {fmt or 'none'} -> {described}")
 
     for status, path, rev in changed_paths(sha):
         if not path.startswith(f"{DATA_DIR}/"):
@@ -263,7 +297,7 @@ def check_commit(sha, maintainers, gnupghome, allowed_signers, pgp_index, ssh_in
             continue
 
         if signers & holders:
-            print(f"  ok {status} {path} ({', '.join(sorted(signers & holders))})")
+            log(f"  ok {status} {path} ({', '.join(sorted(signers & holders))})")
         else:
             report("error",
                    f"{path}: {status} needs a signature from {' or '.join(sorted(holders))}, "
