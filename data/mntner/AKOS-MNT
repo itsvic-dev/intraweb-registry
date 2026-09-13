@@ -4,3 +4,5 @@ admin-c:            AKOS-IW
 tech-c:             AKOS-IW
 mnt-by:             AKOS-MNT
 source:             INTRAWEB
+auth:		    ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAj5FBbpTWe12zuL14EzY6mTEKyjWwSC3d3PMvEbH5Ho
+auth:               ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCmtvG/0VPMXhFCU1XriFUVQRItuIEDtF7hNts+DF8q+vRzehNCgWE8/i9ioA+f6i10sVKTNhnhOaZOn3AtoaSbgo8OEsFu7OgoiM2xuvq7E8EKc/AaHRusuVbXooT/NcRB5yMiFKmU7Dfi++NkrhUw1HwKJZ1eNejUcx/YGFZDQkocPkzUOY6fG2P9G/ZtCQT9dDFMdvU9gET79nu49//jyuwbPs5mKnWxa/6rpPp6rS1crggVYnY4qtOqdQ3v2rbJeqwUZ/5RpWsO3JDyjhXy8MwRc9yPUEVuDB0Zh4IQsYzt9zGE/PWN4EBwBaAUggelPGEoB6+py27PW2+s4jtIxa4LqPTe0r8MQk5zdc3teZxtsdYKP6wjXjhZs0JIHcZYJ42EZRDZYysW5Jimu6LwitHOmBU83+o3yOmb7toF3ChXxr4KVdFE+RnwJBryOv/oF6kPGNYfFfIkG95MTqIMbvl7LfUF7FybI46IYb0UZ28+LrfaiHHUkF9qfk9ED18=  		
