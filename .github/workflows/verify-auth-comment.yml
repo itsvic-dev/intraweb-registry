@@ -1,0 +1,82 @@
+name: verify-auth-comment
+
+on:
+  workflow_run:
+    workflows: [verify-auth]
+    types: [completed]
+
+permissions:
+  actions: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: download report
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: verify-auth-report
+          path: verify-auth-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: comment report on PR
+        if: steps.download.outcome == 'success'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require("fs");
+            const dir = "verify-auth-report";
+            if (!fs.existsSync(`${dir}/report.md`) || !fs.existsSync(`${dir}/pr-number`)) {
+              return;
+            }
+
+            const issue_number = Number(fs.readFileSync(`${dir}/pr-number`, "utf8").trim());
+            if (!Number.isInteger(issue_number) || issue_number <= 0) {
+              core.setFailed("artifact does not carry a usable PR number");
+              return;
+            }
+
+            const head_sha = context.payload.workflow_run.head_sha;
+            const { data: pull } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: issue_number,
+            });
+            if (pull.head.sha !== head_sha) {
+              core.warning(
+                `PR #${issue_number} is at ${pull.head.sha}, the report covers ${head_sha}, ` +
+                "skipping the comment");
+              return;
+            }
+
+            const marker = "<!-- verify-auth-report -->";
+            const body = `${marker}\n## Verify auth report\n\n${fs.readFileSync(`${dir}/report.md`, "utf8")}`;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+            });
+            const existing = comments.find((comment) => comment.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                body,
+              });
+            }
