@@ -1,0 +1,6 @@
+domain:             chirp.iw
+nserver:            ns1.vic.iw 10.21.0.1
+admin-c:            VIC-IW
+mnt-by:             VIC-MNT
+ds-rdata:           37709 15 2 BA9E024B5FF97B6C3AA16A742E8D34016659A43BD8D5C88DF5C2014C405F73AD
+source:             INTRAWEB
