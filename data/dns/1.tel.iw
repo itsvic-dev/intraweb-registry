@@ -1,0 +1,8 @@
+domain:             1.tel.iw
+descr:              Telephony - carrier code 1
+nserver:            ns1.vic.iw 10.21.0.1
+nserver:            ns2.vic.iw 10.21.0.4
+admin-c:            VIC-IW
+mnt-by:             VIC-MNT
+ds-rdata:           35144 15 2 51028A2F8FBC4CD0AAC87B4A7EE8A7149CF5B1A97A77E49FDD88745838F92653
+source:             INTRAWEB
