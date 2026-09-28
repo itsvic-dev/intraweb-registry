@@ -68,14 +68,16 @@ def normalize_fingerprint(value):
     return re.sub(r"[\s:]", "", value).upper()
 
 
-def load_maintainers(rev):
-    """map every mntner at rev to the PGP fingerprints and SSH keys it authorizes with"""
-    listing = git("ls-tree", "--name-only", f"{rev}:{MNTNER_DIR}", check=False)
-    if listing.returncode != 0:
-        raise SystemExit(f"no {MNTNER_DIR} at {rev}")
+def load_maintainers(rev, names=None):
+    """map every mntner at rev, or only those in names, to the PGP fingerprints and SSH keys it authorizes with"""
+    if names is None:
+        listing = git("ls-tree", "--name-only", f"{rev}:{MNTNER_DIR}", check=False)
+        if listing.returncode != 0:
+            raise SystemExit(f"no {MNTNER_DIR} at {rev}")
+        names = listing.stdout.split()
 
     maintainers = {}
-    for name in listing.stdout.split():
+    for name in names:
         text = blob(rev, f"{MNTNER_DIR}/{name}")
         if text is None:
             continue
@@ -218,6 +220,13 @@ def main():
     base, head = sys.argv[1], sys.argv[2] if len(sys.argv) == 3 else "HEAD"
 
     maintainers = load_maintainers(base)
+    added = git("diff", "--name-only", "--diff-filter=A", f"{base}...{head}", "--", MNTNER_DIR).stdout.split()
+    new = [os.path.basename(path) for path in added if os.path.basename(path) not in maintainers]
+    for name, keys in load_maintainers(head, new).items():
+        # a new mntner can only vouch for itself, the validator stops it from claiming others' objects
+        report("warning", f"{name} is a new mntner, trusting the keys it brings")
+        maintainers[name] = keys
+
     commits = git("rev-list", "--no-merges", "--reverse", f"{base}..{head}").stdout.split()
     if not commits:
         print(f"no commits in {base}..{head}")
@@ -291,9 +300,9 @@ def check_commit(sha, maintainers, gnupghome, allowed_signers, pgp_index, ssh_in
         holders = {name for name in required & maintainers.keys()
                    if maintainers[name]["pgp"] or maintainers[name]["ssh"]}
         if not holders:
-            report("warning",
+            report("error",
                    f"{path}: no mntner in mnt-by ({', '.join(sorted(required))}) has auth keys, "
-                   f"allowing {status}", path)
+                   f"cannot authorize {status}", path)
             continue
 
         if signers & holders:
