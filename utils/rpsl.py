@@ -187,6 +187,7 @@ EXTRA_SPECS = {
     ("dns", "ds-rdata"): parse_spec(["[number]", "[number]", "[number]", "[hex]"]),
     ("inetnum", "cidr"): parse_spec(["[ipv4-network]"]),
     ("route", "route"): parse_spec(["[ipv4-network]"]),
+    ("route", "max-length"): parse_spec(["[number]"]),
 }
 
 
@@ -322,7 +323,18 @@ def check_inetnum(obj: RegistryObject) -> str | None:
     return "inetnum range does not match cidr"
 
 
-OBJECT_CHECKS = {"inetnum": check_inetnum}
+def check_route(obj: RegistryObject) -> str | None:
+    max_length = obj.get("max-length")
+    try:
+        network = ipaddress.IPv4Network(obj.get("route") or "")
+        if max_length is None or network.prefixlen <= int(max_length) <= network.max_prefixlen:
+            return None
+    except ValueError:
+        return None
+    return f"max-length must be between {network.prefixlen} and {network.max_prefixlen}"
+
+
+OBJECT_CHECKS = {"inetnum": check_inetnum, "route": check_route}
 
 
 @dataclass(frozen=True)
