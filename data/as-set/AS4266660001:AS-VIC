@@ -1,0 +1,9 @@
+as-set:             AS4266660001:AS-VIC
+descr:              it's vic! and downstreams
+members:            AS4266660001
+members:            AS4266660002
+members:            AS4266660003
+admin-c:            VIC-IW
+tech-c:             VIC-IW
+mnt-by:             VIC-MNT
+source:             INTRAWEB
