@@ -1,0 +1,28 @@
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [trunk]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: validate registry objects against their schemas
+        run: python3 utils/validate.py
+
+      - name: install named-checkzone
+        run: sudo apt-get update -q && sudo apt-get install -yq bind9-utils
+
+      - name: generate and check zones
+        working-directory: ${{ runner.temp }}
+        run: |
+          python3 "$GITHUB_WORKSPACE/utils/generate_zone.py" --check
+          named-checkzone iw. iw.db
+          named-checkzone 10.in-addr.arpa. rdns.db
