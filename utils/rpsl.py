@@ -344,12 +344,15 @@ class Registry:
         for directory in sorted(root.iterdir()):
             if directory.name.startswith("."):
                 continue
-            if not directory.is_dir():
+            if directory.is_symlink() or not directory.is_dir():
                 self.report(directory, "is not inside an object directory")
                 continue
             objects = self.objects.setdefault(directory.name, {})
             for path in sorted(directory.iterdir()):
                 if path.name.startswith("."):
+                    continue
+                if path.is_symlink() or not path.is_file():
+                    self.report(path, "is not a regular file")
                     continue
                 try:
                     objects[path.name] = RegistryObject.load(path)

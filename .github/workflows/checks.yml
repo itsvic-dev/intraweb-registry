@@ -1,0 +1,178 @@
+name: checks
+
+# runs the scripts from the base branch; the pull request is only ever read as data, never executed
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    env:
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+    steps:
+      - name: check out the base branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: fetch the pull request as data
+        run: |
+          git fetch --no-tags origin "+refs/pull/$PR_NUMBER/head:refs/remotes/pull/head"
+          mkdir -p "$RUNNER_TEMP/report" "$RUNNER_TEMP/pr"
+          git archive "$HEAD_SHA" data | tar -x -C "$RUNNER_TEMP/pr"
+
+      - name: verify maintainer authorization
+        id: verify
+        continue-on-error: true
+        env:
+          VERIFY_AUTH_REPORT: ${{ runner.temp }}/report/verify-auth.md
+        run: python3 utils/verify_auth.py "$BASE_SHA" "$HEAD_SHA"
+
+      - name: validate registry objects against their schemas
+        id: validate
+        continue-on-error: true
+        run: python3 utils/validate.py --data "$RUNNER_TEMP/pr/data"
+
+      - name: install named-checkzone
+        run: sudo apt-get update -q && sudo apt-get install -yq bind9-utils
+
+      - name: generate and check zones
+        id: zones
+        continue-on-error: true
+        working-directory: ${{ runner.temp }}
+        run: |
+          python3 "$GITHUB_WORKSPACE/utils/generate_zone.py" --check --data "$RUNNER_TEMP/pr/data"
+          named-checkzone iw. iw.db
+          named-checkzone 10.in-addr.arpa. rdns.db
+
+      - name: decide on auto-merge
+        id: decide
+        if: always()
+        env:
+          VERIFY: ${{ steps.verify.outcome }}
+          VALIDATE: ${{ steps.validate.outcome }}
+          ZONES: ${{ steps.zones.outcome }}
+          WARNINGS: ${{ steps.verify.outputs.warnings }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          reason=""
+          if [ "$VERIFY" != success ] || [ "$VALIDATE" != success ] || [ "$ZONES" != success ]; then
+            reason="a check failed"
+          elif [ "$WARNINGS" != 0 ]; then
+            reason="verify-auth has warnings"
+          elif git diff --name-only "$BASE_SHA...$HEAD_SHA" | grep -qv '^data/'; then
+            reason="files outside data/ changed"
+          elif [ "$BASE_REF" != "$DEFAULT_BRANCH" ]; then
+            reason="the pull request does not target $DEFAULT_BRANCH"
+          elif [ "$DRAFT" = true ]; then
+            reason="the pull request is a draft"
+          fi
+          if [ -z "$reason" ]; then
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+            echo "summary=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+            echo "summary=no, $reason" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: comment the report on the pull request
+        if: always()
+        uses: actions/github-script@v9
+        env:
+          REPORT: ${{ runner.temp }}/report/verify-auth.md
+          VERIFY: ${{ steps.verify.outcome }}
+          VALIDATE: ${{ steps.validate.outcome }}
+          ZONES: ${{ steps.zones.outcome }}
+          AUTO_MERGE: ${{ steps.decide.outputs.summary }}
+        with:
+          script: |
+            const fs = require("fs");
+            const { REPORT, VERIFY, VALIDATE, ZONES, AUTO_MERGE } = process.env;
+            const issue_number = context.payload.pull_request.number;
+            const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const report = fs.existsSync(REPORT)
+              ? fs.readFileSync(REPORT, "utf8")
+              : "_verify-auth did not write a report._\n";
+
+            const marker = "<!-- verify-auth-report -->";
+            const body = [
+              marker,
+              "## Registry checks",
+              "",
+              "| check | result |",
+              "| --- | --- |",
+              `| verify-auth | ${VERIFY || "skipped"} |`,
+              `| validate | ${VALIDATE || "skipped"} |`,
+              `| zones | ${ZONES || "skipped"} |`,
+              "",
+              `Auto-merge: ${AUTO_MERGE || "no"}`,
+              "",
+              `Details are in the [run log](${run}).`,
+              "",
+              "### Verify auth report",
+              "",
+              report,
+            ].join("\n");
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number,
+            });
+            const existing = comments.find((comment) => comment.body.includes(marker));
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number,
+                body,
+              });
+            }
+
+      - name: auto-merge
+        if: steps.decide.outputs.merge == 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                sha: process.env.HEAD_SHA,
+                merge_method: "squash",
+              });
+            } catch (error) {
+              core.warning(`auto-merge failed: ${error.message}`);
+            }
+
+      - name: fail if a check failed
+        if: steps.verify.outcome != 'success' || steps.validate.outcome != 'success' || steps.zones.outcome != 'success'
+        run: exit 1

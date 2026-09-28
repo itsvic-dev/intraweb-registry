@@ -260,6 +260,9 @@ def main():
 
     print(f"\n{len(commits)} commit(s) checked, {errors} error(s), {warnings} warning(s)")
     write_report(len(commits))
+    if output := os.environ.get("GITHUB_OUTPUT"):
+        with open(output, "a") as file:
+            file.write(f"errors={errors}\nwarnings={warnings}\n")
     return 1 if errors else 0
 
 
