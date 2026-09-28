@@ -9,8 +9,9 @@ from pathlib import Path
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 KEY_WIDTH = 20
 NAME_RE = re.compile(r"[a-zA-Z]([a-zA-Z0-9_\-]*[a-zA-Z0-9])?")
+TLD = "iw"
 DNS_LABEL = r"(?!-)[a-z0-9-]{1,63}(?<!-)"
-DOMAIN_RE = re.compile(rf"(?:{DNS_LABEL}\.)*iw", re.IGNORECASE)
+DOMAIN_RE = re.compile(rf"(?:{DNS_LABEL}\.)*{TLD}", re.IGNORECASE)
 
 
 class RegistryObject:
@@ -273,6 +274,40 @@ def file_name(value: str) -> str:
     return value.replace("/", "_")
 
 
+def network_of(name: str) -> Network | None:
+    try:
+        return ipaddress.ip_network(name.replace("_", "/"))
+    except ValueError:
+        return None
+
+
+def closest_domain(domains, name: str, strict: bool = False) -> str | None:
+    """the most specific of domains that is name or, unless strict, one of its parents"""
+    labels = name.lower().split(".")
+    for start in range(1 if strict else 0, len(labels)):
+        candidate = ".".join(labels[start:])
+        if candidate in domains:
+            return candidate
+    return None
+
+
+def maintainers(obj: RegistryObject, *keys: str) -> set[str]:
+    """values of the first of keys that the object has"""
+    for key in keys:
+        if values := obj.get_all(key):
+            return set(values)
+    return set()
+
+
+def glue(obj: RegistryObject, host: str) -> set[str]:
+    addrs = set()
+    for nserver in obj.get_all("nserver"):
+        name, *rest = nserver.split()
+        if name.lower() == host.lower():
+            addrs.update(rest)
+    return addrs
+
+
 def check_inetnum(obj: RegistryObject) -> str | None:
     first, _, last = (obj.get("inetnum") or "").partition(" - ")
     try:
@@ -340,11 +375,10 @@ class Registry:
         """name of the most specific object of a kind that contains network"""
         best = None
         for name in self.objects.get(kind, {}):
-            try:
-                candidate = ipaddress.ip_network(name.replace("_", "/"))
-            except ValueError:
+            candidate = network_of(name)
+            if candidate is None or candidate.version != network.version:
                 continue
-            if candidate.version != network.version or not network.subnet_of(candidate):
+            if not network.subnet_of(candidate):
                 continue
             if strict and candidate == network:
                 continue
@@ -367,7 +401,70 @@ class Registry:
                     self.report(path, f"no schema has dir-name {kind}")
                 else:
                     self.check(schema, path, obj)
+
+        self.check_networks()
+        self.check_domains()
         return self.problems
+
+    def check_delegation(self, kind: str, name: str, allowed: set[str], parent: str):
+        """a child may only name maintainers of its parent, so creating it needs their signature"""
+        mnt_by = set(self.objects[kind][name].get_all("mnt-by"))
+        if not mnt_by or not mnt_by <= allowed:
+            self.report(
+                self.root / kind / name,
+                f"mnt-by may only name {', '.join(sorted(allowed)) or 'nothing'} from {parent}",
+            )
+
+    def check_networks(self):
+        inetnums = self.objects.get("inetnum", {})
+        registry = set()
+        for obj in self.objects.get("registry", {}).values():
+            registry.update(obj.get_all("mnt-by"))
+
+        for name in inetnums:
+            network = network_of(name)
+            if network is None:
+                continue
+            parent = self.enclosing("inetnum", network, strict=True)
+            if parent is None:
+                self.check_delegation("inetnum", name, registry, "the registry")
+            elif inetnums[parent].get("policy") != "open":
+                allowed = maintainers(inetnums[parent], "mnt-lower", "mnt-by")
+                self.check_delegation("inetnum", name, allowed, f"inetnum/{parent}")
+
+        for name in self.objects.get("route", {}):
+            network = network_of(name)
+            if network is None:
+                continue
+            parent = self.enclosing("inetnum", network)
+            if parent is None:
+                self.report(self.root / "route" / name, "route is not inside any inetnum")
+                continue
+            allowed = maintainers(inetnums[parent], "mnt-routes", "mnt-lower", "mnt-by")
+            self.check_delegation("route", name, allowed, f"inetnum/{parent}")
+
+    def check_domains(self):
+        domains = self.objects.get("dns", {})
+        for name, obj in domains.items():
+            if name != TLD:
+                parent = closest_domain(domains, name, strict=True)
+                if parent is None:
+                    self.report(self.root / "dns" / name, f"domain is not inside {TLD}")
+                elif parent != TLD:
+                    allowed = set(domains[parent].get_all("mnt-by"))
+                    self.check_delegation("dns", name, allowed, f"dns/{parent}")
+
+            for nserver in obj.get_all("nserver"):
+                host, *addrs = nserver.split()
+                owner = closest_domain(domains, host)
+                if owner is None or owner == name:
+                    continue
+                expected = glue(domains[owner], host)
+                if expected and not set(addrs) <= expected:
+                    self.report(
+                        self.root / "dns" / name,
+                        f"nserver {nserver!r} does not match the glue {', '.join(sorted(expected))} from dns/{owner}",
+                    )
 
     def check(self, schema: Schema, path: Path, obj: RegistryObject):
         if obj.attrs[0][0] != schema.type_key:
