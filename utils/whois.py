@@ -1,163 +1,113 @@
-# simple whois server with hardcoded parsing to make my life easier
+"""whois server for the registry objects"""
+
+import argparse
 import ipaddress
-import os
-import re
+import platform
 import socketserver
-import sys
 
-from dumbschema import dumb_parse_object, pretty_print_object
+from rpsl import Registry, RegistryObject, file_name
 
-REGEXES = {
-    r"^(((?!25?[6-9])[12]\d|[1-9])?\d\.?\b){4}$": ["inetnum", "route"],
-    r"^ORG-[\w-]+$": ["org"],
-    r"^[\w-]*-IW$": ["person", "role"],
-    r"^(AS|as)\d+$": ["aut-num"],
-    r"^(?i:(AS\d+:|AS-[\w-]+:)*AS-[\w-]+)$": ["as-set"],
-    r"^.*\.iw$": ["dns"],
-    r"^iw$": ["dns"],  # 'iw' zone
-}
-
-FOOTER = "% This query was served by the Intranet WHOIS query server"
+CONTACT_KINDS = ("person", "role", "organisation")
+NETWORK_KINDS = ("inetnum", "route")
+BANNER = f"% This is Intraweb Whois server on Python {platform.python_version()}\n\n"
+FOOTER = "% This query was served by the Intranet WHOIS query server\n"
 
 
-def lookup_inetnum(query: str) -> str:
-    query_net = ipaddress.IPv4Network(query)
-    target_net: ipaddress.IPv4Network | None = None
-    for entry in os.scandir("data/inetnum"):
-        entry_net = ipaddress.IPv4Network(entry.name.replace("_", "/"))
-        if query_net.subnet_of(entry_net):
-            if target_net is None or entry_net.subnet_of(target_net):
-                target_net = entry_net
-
-    if target_net is None:
-        return ""
-    with open(f"data/inetnum/{str(target_net).replace('/', '_')}") as file:
-        obj = dumb_parse_object(file.read())
-
-    output = pretty_print_object(obj) + "\n"
-
-    EXTRA_LOOKUPS = ["admin-c", "tech-c", "org"]
-    extra_objects = set()
-
-    for extra_key in EXTRA_LOOKUPS:
-        if extra_key in obj:
-            if type(obj[extra_key]) is list:
-                for value in obj[extra_key]:
-                    if value not in extra_objects:
-                        output += lookup(value, extra_objects)
-                        extra_objects.add(value)
-            else:
-                value = obj[extra_key]
-                if value not in extra_objects:
-                    output += lookup(value, extra_objects)  # pyright: ignore[reportArgumentType]
-                    extra_objects.add(value)
-
-    return output
+def most_specific(registry: Registry, kind: str, network) -> str | None:
+    best = None
+    for name in registry.objects.get(kind, {}):
+        try:
+            candidate = ipaddress.ip_network(name.replace("_", "/"))
+        except ValueError:
+            continue
+        if candidate.version != network.version or not network.subnet_of(candidate):
+            continue
+        if best is None or candidate.prefixlen > best.prefixlen:
+            best = candidate
+    return file_name(str(best)) if best else None
 
 
-def lookup_route(query: str) -> str:
-    query_net = ipaddress.IPv4Network(query)
-    target_net: ipaddress.IPv4Network | None = None
-    for entry in os.scandir("data/route"):
-        entry_net = ipaddress.IPv4Network(entry.name.replace("_", "/"))
-        if query_net.subnet_of(entry_net):
-            if target_net is None or entry_net.subnet_of(target_net):
-                target_net = entry_net
+def matches(registry: Registry, query: str) -> list[tuple[str, str]]:
+    try:
+        network = ipaddress.ip_network(query, strict=False)
+    except ValueError:
+        pass
+    else:
+        found = [(kind, most_specific(registry, kind, network)) for kind in NETWORK_KINDS]
+        return [(kind, name) for kind, name in found if name]
 
-    if target_net is None:
-        return ""
-    with open(f"data/route/{str(target_net).replace('/', '_')}") as file:
-        return pretty_print_object(dumb_parse_object(file.read())) + "\n"
-
-
-def lookup_generic(kind: str, query: str, extra_objects=set()) -> str:
-    if not os.path.exists(f"data/{kind}/{query}"):
-        return ""
-
-    with open(f"data/{kind}/{query}") as file:
-        obj = dumb_parse_object(file.read())
-
-    EXTRA_LOOKUPS = ["admin-c", "tech-c", "org"]
-
-    output = pretty_print_object(obj) + "\n"
-
-    for extra_key in EXTRA_LOOKUPS:
-        if extra_key in obj:
-            if type(obj[extra_key]) is list:
-                for value in obj[extra_key]:
-                    if value not in extra_objects:
-                        output += lookup(value, extra_objects)
-                        extra_objects.add(value)
-            else:
-                value = obj[extra_key]
-                if value not in extra_objects:
-                    output += lookup(value, extra_objects)  # pyright: ignore[reportArgumentType]
-                    extra_objects.add(value)
-
-    return output
+    found = []
+    for kind, objects in registry.objects.items():
+        for name in (query, query.upper(), query.lower()):
+            if file_name(name) in objects:
+                found.append((kind, file_name(name)))
+                break
+    return found
 
 
-def lookup(query: str, extra_objects=set()) -> str:
-    query = query.strip()
-    output = ""
-    for key, values in REGEXES.items():
-        if re.fullmatch(key, query):
-            # found a match, lookup values
-            for value in values:
-                match value:
-                    case "aut-num":
-                        output += lookup_generic(
-                            "aut-num", query.upper(), extra_objects
-                        )
-                    case "as-set":
-                        output += lookup_generic(
-                            "as-set", query.upper(), extra_objects
-                        )
-                    case "inetnum":
-                        output += lookup_inetnum(query)
-                    case "route":
-                        output += lookup_route(query)
-                    case "org":
-                        output += lookup_generic("organisation", query, extra_objects)
-                    case "person":
-                        output += lookup_generic("person", query, extra_objects)
-                    case "role":
-                        output += lookup_generic("role", query, extra_objects)
-                    case "dns":
-                        output += lookup_generic("dns", query, extra_objects)
+def contacts(registry: Registry, kind: str, obj: RegistryObject) -> list[tuple[str, str]]:
+    schema = registry.schemas.get(kind)
+    if schema is None:
+        return []
+    found = []
+    for key, value in obj.attrs:
+        definition = schema.keys.get(key)
+        for ref in definition.lookups if definition else ():
+            target = registry.refs.get(ref)
+            if target in CONTACT_KINDS and registry.find(target, value):
+                found.append((target, file_name(value)))
+    return found
 
+
+def lookup(registry: Registry, query: str) -> list[RegistryObject]:
+    """objects matching the query, each followed by the contacts it references"""
+    seen: set[tuple[str, str]] = set()
+    output: list[RegistryObject] = []
+
+    def visit(kind: str, name: str):
+        if (kind, name) in seen:
+            return
+        seen.add((kind, name))
+        obj = registry.objects[kind][name]
+        output.append(obj)
+        for contact in contacts(registry, kind, obj):
+            visit(*contact)
+
+    for match in matches(registry, query):
+        visit(*match)
     return output
 
 
 class WhoisRequestHandler(socketserver.StreamRequestHandler):
+    timeout = 10
+
     def handle(self):
-        data = self.rfile.readline(1024).decode()
-        self.wfile.write(
-            (
-                f"% This is Intraweb Whois server on Python {sys.version}\r\n\r\n"
-            ).encode()
-        )
-        output = lookup(data.strip())
-        if output == "":
-            self.wfile.write(b"% Your query returned zero results.\r\n")
+        try:
+            query = self.rfile.readline(1024).decode(errors="replace").strip()
+        except TimeoutError:
+            return
+        objects = lookup(Registry(), query) if query else []
+        if objects:
+            body = "\n".join(str(obj) for obj in objects)
         else:
-            self.wfile.write(output.replace("\n", "\r\n").encode())
+            body = "% Your query returned zero results.\n"
+        response = f"{BANNER}{body}\n{FOOTER}"
+        self.wfile.write(response.replace("\n", "\r\n").encode())
+
+
+class WhoisServer(socketserver.ForkingTCPServer):
+    allow_reuse_address = True
 
 
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("-H", "--host", default="localhost")
     parser.add_argument("-p", "--port", default=43, type=int)
-    ns = parser.parse_args()
+    args = parser.parse_args()
 
-    host = ns.host
-    port = ns.port
-
-    print(f"Starting WHOIS server on {host}:{port}")
-    print(f"Access me with `whois -h {host} -p {port} ...`")
-    with socketserver.ForkingTCPServer((host, port), WhoisRequestHandler) as server:
+    print(f"Starting WHOIS server on {args.host}:{args.port}")
+    print(f"Access me with `whois -h {args.host} -p {args.port} ...`")
+    with WhoisServer((args.host, args.port), WhoisRequestHandler) as server:
         try:
             server.serve_forever()
         except KeyboardInterrupt:
