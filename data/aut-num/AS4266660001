@@ -3,5 +3,8 @@ as-name:            VIC-AS
 descr:              it's vic!
 org:                ORG-VIC
 admin-c:            VIC-IW
+mp-import:          afi any.unicast from AS4266660002 accept AS4266660002
+mp-import:          afi any.unicast from AS4266660003 accept AS4266660003
+mp-export:          afi any.unicast to AS-ANY announce AS4266660001:AS-VIC
 mnt-by:             VIC-MNT
 source:             INTRAWEB

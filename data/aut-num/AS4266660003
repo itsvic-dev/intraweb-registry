@@ -4,5 +4,7 @@ descr:              vic!ISP
 org:                ORG-VICISP
 admin-c:            VIC-IW
 tech-c:             VIC-IW
+mp-import:          afi any.unicast from AS4266660001 accept ANY
+mp-export:          afi any.unicast to AS4266660001 announce AS4266660003
 mnt-by:             VIC-MNT
 source:             INTRAWEB
