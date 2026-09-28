@@ -13,4 +13,4 @@ key:                descr           optional   single
 key:                remarks         optional   multiple
 key:                source          required   single    lookup=iw.registry
 mnt-by:             INTRAWEB-MNT
-source:             IW
+source:             INTRAWEB
