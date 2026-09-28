@@ -291,9 +291,9 @@ def check_commit(sha, maintainers, gnupghome, allowed_signers, pgp_index, ssh_in
         holders = {name for name in required & maintainers.keys()
                    if maintainers[name]["pgp"] or maintainers[name]["ssh"]}
         if not holders:
-            report("warning",
+            report("error",
                    f"{path}: no mntner in mnt-by ({', '.join(sorted(required))}) has auth keys, "
-                   f"allowing {status}", path)
+                   f"cannot authorize {status}", path)
             continue
 
         if signers & holders:
