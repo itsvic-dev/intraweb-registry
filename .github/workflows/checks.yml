@@ -3,9 +3,10 @@ name: checks
 # runs the scripts from the base branch; the pull request is only ever read as data, never executed
 on:
   pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
   issues: write
   pull-requests: write
 
@@ -61,6 +62,38 @@ jobs:
           named-checkzone iw. iw.db
           named-checkzone 10.in-addr.arpa. rdns.db
 
+      - name: decide on auto-merge
+        id: decide
+        if: always()
+        env:
+          VERIFY: ${{ steps.verify.outcome }}
+          VALIDATE: ${{ steps.validate.outcome }}
+          ZONES: ${{ steps.zones.outcome }}
+          WARNINGS: ${{ steps.verify.outputs.warnings }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          reason=""
+          if [ "$VERIFY" != success ] || [ "$VALIDATE" != success ] || [ "$ZONES" != success ]; then
+            reason="a check failed"
+          elif [ "$WARNINGS" != 0 ]; then
+            reason="verify-auth has warnings"
+          elif git diff --name-only "$BASE_SHA...$HEAD_SHA" | grep -qv '^data/'; then
+            reason="files outside data/ changed"
+          elif [ "$BASE_REF" != "$DEFAULT_BRANCH" ]; then
+            reason="the pull request does not target $DEFAULT_BRANCH"
+          elif [ "$DRAFT" = true ]; then
+            reason="the pull request is a draft"
+          fi
+          if [ -z "$reason" ]; then
+            echo "merge=true" >> "$GITHUB_OUTPUT"
+            echo "summary=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "merge=false" >> "$GITHUB_OUTPUT"
+            echo "summary=no, $reason" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: comment the report on the pull request
         if: always()
         uses: actions/github-script@v9
@@ -69,10 +102,11 @@ jobs:
           VERIFY: ${{ steps.verify.outcome }}
           VALIDATE: ${{ steps.validate.outcome }}
           ZONES: ${{ steps.zones.outcome }}
+          AUTO_MERGE: ${{ steps.decide.outputs.summary }}
         with:
           script: |
             const fs = require("fs");
-            const { REPORT, VERIFY, VALIDATE, ZONES } = process.env;
+            const { REPORT, VERIFY, VALIDATE, ZONES, AUTO_MERGE } = process.env;
             const issue_number = context.payload.pull_request.number;
             const run = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const report = fs.existsSync(REPORT)
@@ -89,6 +123,8 @@ jobs:
               `| verify-auth | ${VERIFY || "skipped"} |`,
               `| validate | ${VALIDATE || "skipped"} |`,
               `| zones | ${ZONES || "skipped"} |`,
+              "",
+              `Auto-merge: ${AUTO_MERGE || "no"}`,
               "",
               `Details are in the [run log](${run}).`,
               "",
@@ -118,6 +154,23 @@ jobs:
                 issue_number,
                 body,
               });
+            }
+
+      - name: auto-merge
+        if: steps.decide.outputs.merge == 'true'
+        uses: actions/github-script@v9
+        with:
+          script: |
+            try {
+              await github.rest.pulls.merge({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.payload.pull_request.number,
+                sha: process.env.HEAD_SHA,
+                merge_method: "squash",
+              });
+            } catch (error) {
+              core.warning(`auto-merge failed: ${error.message}`);
             }
 
       - name: fail if a check failed
