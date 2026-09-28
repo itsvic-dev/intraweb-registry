@@ -12,6 +12,7 @@ REGEXES = {
     r"^ORG-[\w-]+$": ["org"],
     r"^[\w-]*-IW$": ["person", "role"],
     r"^(AS|as)\d+$": ["aut-num"],
+    r"^(?i:(AS\d+:|AS-[\w-]+:)*AS-[\w-]+)$": ["as-set"],
     r"^.*\.iw$": ["dns"],
     r"^iw$": ["dns"],  # 'iw' zone
 }
@@ -107,6 +108,10 @@ def lookup(query: str, extra_objects=set()) -> str:
                     case "aut-num":
                         output += lookup_generic(
                             "aut-num", query.upper(), extra_objects
+                        )
+                    case "as-set":
+                        output += lookup_generic(
+                            "as-set", query.upper(), extra_objects
                         )
                     case "inetnum":
                         output += lookup_inetnum(query)
