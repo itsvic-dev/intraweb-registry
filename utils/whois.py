@@ -13,27 +13,13 @@ BANNER = f"% This is Intraweb Whois server on Python {platform.python_version()}
 FOOTER = "% This query was served by the Intranet WHOIS query server\n"
 
 
-def most_specific(registry: Registry, kind: str, network) -> str | None:
-    best = None
-    for name in registry.objects.get(kind, {}):
-        try:
-            candidate = ipaddress.ip_network(name.replace("_", "/"))
-        except ValueError:
-            continue
-        if candidate.version != network.version or not network.subnet_of(candidate):
-            continue
-        if best is None or candidate.prefixlen > best.prefixlen:
-            best = candidate
-    return file_name(str(best)) if best else None
-
-
 def matches(registry: Registry, query: str) -> list[tuple[str, str]]:
     try:
         network = ipaddress.ip_network(query, strict=False)
     except ValueError:
         pass
     else:
-        found = [(kind, most_specific(registry, kind, network)) for kind in NETWORK_KINDS]
+        found = [(kind, registry.enclosing(kind, network)) for kind in NETWORK_KINDS]
         return [(kind, name) for kind, name in found if name]
 
     found = []

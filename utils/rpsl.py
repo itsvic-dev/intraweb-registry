@@ -266,6 +266,9 @@ class Schema:
         return cls(name, ref, dir_name, keys, primary[0].name, type_keys[0].name)
 
 
+Network = ipaddress.IPv4Network | ipaddress.IPv6Network
+
+
 def file_name(value: str) -> str:
     return value.replace("/", "_")
 
@@ -332,6 +335,22 @@ class Registry:
 
     def find(self, kind: str, name: str) -> RegistryObject | None:
         return self.objects.get(kind, {}).get(file_name(name))
+
+    def enclosing(self, kind: str, network: Network, strict: bool = False) -> str | None:
+        """name of the most specific object of a kind that contains network"""
+        best = None
+        for name in self.objects.get(kind, {}):
+            try:
+                candidate = ipaddress.ip_network(name.replace("_", "/"))
+            except ValueError:
+                continue
+            if candidate.version != network.version or not network.subnet_of(candidate):
+                continue
+            if strict and candidate == network:
+                continue
+            if best is None or candidate.prefixlen > best.prefixlen:
+                best = candidate
+        return file_name(str(best)) if best else None
 
     def validate(self) -> list[Problem]:
         for schema in self.schemas.values():
